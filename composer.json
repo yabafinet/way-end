@@ -1,10 +1,10 @@
 {
   "name": "yabafinet/way-end",
-    "version": "0.0.1",
+  "version": "0.0.1",
   "description": "Way-end is a PHP library for creating way to front-end",
   "type": "library",
   "require": {
-    "php": ">=5.3.0"
+    "php": ">=5.4"
   },
   "autoload": {
     "psr-4": {
