@@ -21,15 +21,15 @@ class CompileVueInstance
                         original_text: ''
                     }
                 },
-                template: '<div v-if="on" v-on:click class="text-danger"><slot></slot></div>',
+                template: '<div v-if="id" v-on:click="setId" class="text-danger"><slot></slot></div>',
                 methods: {
                     setId: function () {
-                        console.log('set-id', this.id);
+                        console.log('set-id:' + this.id);
                         this.$parent.setRequestId(this.id);
                     }
                 },
                 created: function () {
-                    console.log('created:on', this.on);
+                    console.log('created:id' + this.id);
                 }
             });
 
@@ -43,7 +43,8 @@ class CompileVueInstance
                 methods: {
                     <?=$component->buildMethodsInJs();?>
                     sendUpdate(vm, method = null, args = null) {
-                        vm.setLoading(true, method, args);
+                        let _requestId = this.requestId;
+                        vm.setLoading(true, _requestId);
                         let dataToSend = this.preparePropSendToServer(vm);
                         vm.$http.post('<?=$component->getCurrentUrl(['act'=>'update'])?>', {
                             method: method, changed: dataToSend, args: args
@@ -54,7 +55,7 @@ class CompileVueInstance
                                     _<?=$id?>_last_values[val.name] = val.value;
                                 }
                             });
-                            vm.setLoading(false, method, args);
+                            vm.setLoading(false, _requestId);
                         }, response => {
                             console.warn(response);
                         });
@@ -77,11 +78,12 @@ class CompileVueInstance
                         });
                         return data;
                     },
-                    setLoading(isLoading = true, method = null, args = null) {
+                    setLoading(isLoading = true, requestId = null) {
                         if (isLoading) {
-                            this.$emit("loading", { loading: { text: 'Cargando...', icon: '' , requestId : this.requestId}});
+                            this.$emit("loading", { loading: { text: 'Cargando...', icon: '' , requestId : requestId}});
                         } else {
-                            this.$emit("loading", { loading: { text: null, requestId : this.requestId } });
+                            this.$emit("loading", { loading: { text: null, requestId : requestId } });
+                            console.log('[requestId] OK: '+requestId);
                         }
                     },
                     setRequestId(requestId) {
