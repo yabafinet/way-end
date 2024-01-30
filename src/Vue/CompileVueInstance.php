@@ -1,6 +1,6 @@
 <?php
 
-namespace Yabafinet\WayEnd\VueComponent;
+namespace Yabafinet\WayEnd\Vue;
 
 use Yabafinet\WayEnd\WayEndService;
 
@@ -8,28 +8,48 @@ class CompileVueInstance
 {
     public function template(WayEndService $component, $id = 'app')
     {
+        $component->reflectionClass();
 ?>
         <div id="<?=$id?>">
-            <?=$component->template()?>
+            <?php _wn_template()?>
         </div>
         <script>
-            _wb_btn_<?=$id?> = Vue.component('wb-btn', {
-                props: ['id'],
+            _wb_btn_<?=$id?> = Vue.component('wn-suspense', {
+                props: [],
                 data: function () {
                     return {
-                        loading: this.$parent.loading,
-                        original_text: ''
+                        loading: false,
+                        id: this.defaultId()
                     }
                 },
-                template: '<div v-if="id" v-on:click="setId" class="text-danger"><slot></slot></div>',
+                template:
+                    '<div v-if="!loading" v-on:click="setId" class="text-danger"><slot></slot></div>'+
+                    '<div v-else class="text-danger"><i class="fa fa-spinner"></i> ... </div>',
                 methods: {
                     setId: function () {
-                        console.log('set-id:' + this.id);
+                        console.log('setId', this.id)
                         this.$parent.setRequestId(this.id);
+                    },
+                    defaultId: function () {
+                        return Math.floor(Math.random() * 8);
+                    }
+                },
+                mounted: function () {
+                    if (this.id === undefined) {
+                        this.id = this.defaultId();
                     }
                 },
                 created: function () {
-                    console.log('created:id' + this.id);
+                    this.$parent.$on('loading', (data) => {
+                        if (data.loading.requestId !== this.id) {
+                            if (data.loading.text === null) {
+                                this.loading = false;
+                            } else {
+                                this.loading = true;
+                            }
+                            console.log('loading', data.loading, 'LocalId', this.id);
+                        }
+                    });
                 }
             });
 
@@ -37,12 +57,13 @@ class CompileVueInstance
             var app = new Vue({
                 el: '#<?=$id?>',
                 components: {
-                    _wb_btn_<?=$id?>
+                    'wn-suspense': _wb_btn_<?=$id?>,
                 },
                 data: <?=$component->propertiesJsObject(['last_values'=> [], 'props_changed'=>[], 'loading' => false])?>,
                 methods: {
                     <?=$component->buildMethodsInJs();?>
                     sendUpdate(vm, method = null, args = null) {
+                        console.log('sendUpdate', method, args);
                         let _requestId = this.requestId;
                         vm.setLoading(true, _requestId);
                         let dataToSend = this.preparePropSendToServer(vm);
@@ -80,15 +101,16 @@ class CompileVueInstance
                     },
                     setLoading(isLoading = true, requestId = null) {
                         if (isLoading) {
+                            console.log('[requestId] loading: '+requestId);
                             this.$emit("loading", { loading: { text: 'Cargando...', icon: '' , requestId : requestId}});
                         } else {
                             this.$emit("loading", { loading: { text: null, requestId : requestId } });
-                            console.log('[requestId] OK: '+requestId);
+                            console.log('[requestId] loaded: '+requestId);
                         }
                     },
                     setRequestId(requestId) {
                         this.requestId = requestId;
-                        console.log('requestId', requestId);
+                        console.log('setRequestId', requestId);
                     },
                 },
                 created: function () {

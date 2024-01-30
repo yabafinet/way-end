@@ -1,6 +1,6 @@
 <?php
 
-namespace Yabafinet\WayEnd\VueComponent;
+namespace Yabafinet\WayEnd\Vue;
 
 class VueComponent
 {

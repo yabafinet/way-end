@@ -4,7 +4,7 @@
     composer require yabafinet/way-end
 ```
 ##### - ___Requeriments: php >= 7.2___
-
+``
 #### 1. Configuring route and load your components.
 - Configuring your endpoint file.
 - [x] Create a file in your public folder project `way-end.php` and put this code:

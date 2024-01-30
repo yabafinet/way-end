@@ -1,7 +1,8 @@
 <?php
 namespace Yabafinet\WayEnd;
 
-use Yabafinet\WayEnd\VueComponent\CompileVueInstance;
+use Yabafinet\WayEnd\CompileEngine\CompileService;
+use Yabafinet\WayEnd\Vue\CompileVueInstance;
 
 class WayEndService
 {
@@ -12,12 +13,12 @@ class WayEndService
     /**
      * @var mixed
      */
-    private $component_name;
+    public $component_name;
 
     /**
      * @var
      */
-    private $component_class;
+    public $component_class;
     /**
      * @var mixed|null
      */
@@ -42,7 +43,14 @@ class WayEndService
      * @var array|mixed
      */
     private $call_method_args;
-
+    /**
+     * @var
+     */
+    public $component_file;
+    /**
+     * @var CompileService
+     */
+    private $compileService;
 
     /**
      * @throws \ReflectionException
@@ -50,6 +58,7 @@ class WayEndService
     public function __construct($request)
     {
         $this->request = $request;
+        $this->compileService = new CompileService($this);
     }
 
     /**
@@ -59,8 +68,9 @@ class WayEndService
     public function catchActions()
     {
         $this->bootRequired();
+
+        $this->compileService->compile();
         $this->reflectionClass();
-        $this->component_class = new $this->component_name();
         $this->mounted();
         $this->updatePropertiesFromRequest();
 
@@ -68,7 +78,6 @@ class WayEndService
             $datas = $this->buildPropertiesJs();
 
             if (isset($this->call_method)) {
-//                $methodCall = $this->component_class->{$this->call_method}();
                 $methodCall = call_user_func_array(array($this->component_class, $this->call_method), $this->call_method_args);
 
                 foreach ($datas as $property) {
@@ -118,8 +127,6 @@ class WayEndService
         $methods = $this->reflectionClass->getMethods();
         $methods_in_js = '';
         foreach ($methods as $method) {
-            //print_r([$method->getName(), $method->getParameters()]);
-            // build parameters
             $parameters = [];
             foreach ($method->getParameters() as $parameter) {
                 $parameters[] = $parameter->getName();
@@ -135,7 +142,7 @@ class WayEndService
      */
     public function getCurrentUrl($params = null)
     {
-        list($component, $action) = $this->buildRequestQueryString();
+        list($component, $action) = $this->buildRequestQueryString('.');
         $action = isset($params['act']) ? $params['act'] : $action;
         $current = $this->route_patch . '?' . $component . '::' . $action;
         return $current;
@@ -159,6 +166,15 @@ class WayEndService
     }
 
     /**
+     * @param $patch
+     * @return void
+     */
+    public function compilePath($patch)
+    {
+        $this->compileService->patch($patch);
+    }
+
+    /**
      * @return void
      */
     private function bootRequired()
@@ -166,19 +182,20 @@ class WayEndService
         list($component, $action) = $this->buildRequestQueryString();
         $this->call_action = $action;
         $class_component = $this->component_patch . $component;
-        $class_name = basename($class_component);
-        $this->component_name = $class_name;
-        require_once $class_component.'.php';
+        $this->component_file = $class_component.'.php';
+        $this->component_name = basename($class_component);
+        //require_once $class_component.'.php';
     }
 
     /**
      * @return array
      */
-    private function buildRequestQueryString()
+    private function buildRequestQueryString($point_for = '/')
     {
         $queryString = $_SERVER['QUERY_STRING'];
         $queryString = explode('::', $queryString);
-        $component = str_replace('.', '/' , $queryString[0]);
+
+        $component = str_replace('.', $point_for , $queryString[0]);
         $action = isset($queryString[1]) ? $queryString[1] : null;
         return [$component, $action];
     }
@@ -237,8 +254,11 @@ class WayEndService
         }
     }
 
-    public function compileJs()
+    /**
+     * @return void|mixed
+     */
+    public function compileComponent()
     {
-        (new CompileVueInstance())->template($this);
+        return $this->compileService->compile_component;
     }
 }
