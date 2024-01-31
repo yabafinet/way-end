@@ -67,6 +67,7 @@ class CompileService
         // GET CUSTOM TAGS [NOTE: move to other class]
         $parser = new CustomTagParser($content);
         $result = $parser->getPropertiesAndSlot('wn-suspense');
+        //print_r($parser->getSubTags(['wn-suspense' => ['button']]));
         // END GET CUSTOM TAGS
 
         // COMPILE DIRECTIVES [NOTE: move to other class]

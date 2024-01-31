@@ -14,59 +14,24 @@ class CompileVueInstance
             <?php _wn_template()?>
         </div>
         <script>
-            _wb_btn_<?=$id?> = Vue.component('wn-suspense', {
-                props: [],
-                data: function () {
-                    return {
-                        loading: false,
-                        id: this.defaultId()
-                    }
-                },
-                template:
-                    '<div v-if="!loading" v-on:click="setId" class="text-danger"><slot></slot></div>'+
-                    '<div v-else class="text-danger"><i class="fa fa-spinner"></i> ... </div>',
-                methods: {
-                    setId: function () {
-                        console.log('setId', this.id)
-                        this.$parent.setRequestId(this.id);
-                    },
-                    defaultId: function () {
-                        return Math.floor(Math.random() * 8);
-                    }
-                },
-                mounted: function () {
-                    if (this.id === undefined) {
-                        this.id = this.defaultId();
-                    }
-                },
-                created: function () {
-                    this.$parent.$on('loading', (data) => {
-                        if (data.loading.requestId !== this.id) {
-                            if (data.loading.text === null) {
-                                this.loading = false;
-                            } else {
-                                this.loading = true;
-                            }
-                            console.log('loading', data.loading, 'LocalId', this.id);
-                        }
-                    });
-                }
-            });
 
             let _<?=$id?>_last_values = {};
             var app = new Vue({
                 el: '#<?=$id?>',
-                components: {
-                    'wn-suspense': _wb_btn_<?=$id?>,
-                },
-                data: <?=$component->propertiesJsObject(['last_values'=> [], 'props_changed'=>[], 'loading' => false])?>,
+                components: {},
+                data: <?=$component->propertiesJsObject(['last_values'=> [], 'props_changed'=>[], 'loading' => false, 'request_id' => null])?>,
                 methods: {
                     <?=$component->buildMethodsInJs();?>
+
                     sendUpdate(vm, method = null, args = null) {
-                        console.log('sendUpdate', method, args);
-                        let _requestId = this.requestId;
+                        console.log('sendUpdate', method, args, this.request_id);
+
+                        let _requestId = this.request_id;
+                        let last_html = document.getElementById(_requestId)?.innerHTML;
+
                         vm.setLoading(true, _requestId);
                         let dataToSend = this.preparePropSendToServer(vm);
+
                         vm.$http.post('<?=$component->getCurrentUrl(['act'=>'update'])?>', {
                             method: method, changed: dataToSend, args: args
                         }).then( response => {
@@ -76,11 +41,12 @@ class CompileVueInstance
                                     _<?=$id?>_last_values[val.name] = val.value;
                                 }
                             });
-                            vm.setLoading(false, _requestId);
+                            vm.setLoading(false, _requestId, last_html);
                         }, response => {
                             console.warn(response);
                         });
                     },
+
                     lastPropertiesValues(vm) {
                         _<?=$id?>_last_values = {};
                         Object.entries(vm.$data).forEach(function (entry) {
@@ -88,6 +54,7 @@ class CompileVueInstance
                             _<?=$id?>_last_values[name] = value;
                         });
                     },
+
                     preparePropSendToServer(vm) {
                         let data = {};
                         Object.entries(vm.$data).forEach(function (entry) {
@@ -99,15 +66,31 @@ class CompileVueInstance
                         });
                         return data;
                     },
-                    setLoading(isLoading = true, requestId = null) {
+
+                    setLoading(isLoading = true, requestId = null, last_html = null) {
+                        const suspense_el = document.getElementById(requestId);
+                        if (!requestId) {
+                            return;
+                        }
                         if (isLoading) {
+                            suspense_el.style.display = 'none';
                             console.log('[requestId] loading: '+requestId);
-                            this.$emit("loading", { loading: { text: 'Cargando...', icon: '' , requestId : requestId}});
+                            const suspense_load = document.createElement("div");
+                            suspense_load.id = requestId+'-loading';
+                            suspense_load.className = 'loading';
+                            suspense_load.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+                            suspense_el.after(suspense_load);
+                            //this.$emit("loading", { loading: { text: 'Cargando...', icon: '' , requestId : requestId}});
                         } else {
-                            this.$emit("loading", { loading: { text: null, requestId : requestId } });
+                            //this.$emit("loading", { loading: { text: null, requestId : requestId } });
                             console.log('[requestId] loaded: '+requestId);
+                            suspense_el.style.display = 'block';
+                            const suspense_load = document.getElementById(requestId+'-loading');
+                            suspense_load.remove();
+                            //suspense_el.innerHTML = last_html;
                         }
                     },
+
                     setRequestId(requestId) {
                         this.requestId = requestId;
                         console.log('setRequestId', requestId);
@@ -115,6 +98,9 @@ class CompileVueInstance
                 },
                 created: function () {
                     this.lastPropertiesValues(this);
+                },
+                mounted: function () {
+                    this.sendUpdate(this, 'mounted');
                 },
                 updated: function () {}
             });

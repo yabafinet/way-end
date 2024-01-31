@@ -68,7 +68,6 @@ class WayEndService
     public function catchActions()
     {
         $this->bootRequired();
-
         $this->compileService->compile();
         $this->reflectionClass();
         $this->mounted();
@@ -78,8 +77,11 @@ class WayEndService
             $datas = $this->buildPropertiesJs();
 
             if (isset($this->call_method)) {
-                $methodCall = call_user_func_array(array($this->component_class, $this->call_method), $this->call_method_args);
+                if (!method_exists($this->component_class, $this->call_method)) {
+                    exit(json_encode(['data' => $datas]));
+                }
 
+                $methodCall = call_user_func_array(array($this->component_class, $this->call_method), $this->call_method_args);
                 foreach ($datas as $property) {
                     $new_value = $this->component_class->{$property['name']};
                     $property['value'] = $new_value;
